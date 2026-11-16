@@ -1,7 +1,7 @@
 /* Viajes · mapa del mundo, países visitados, ciudades y lista de deseos. Sin fotos. Los datos van a tu hoja «Fergard · Viajes». */
 (function () {
   "use strict";
-  var CFG = window.FG_CFG || {}, VERSION = "0.2.0", TOTAL = 195, DB_KEY = "viajes_db";
+  var CFG = window.FG_CFG || {}, VERSION = "0.3.0", TOTAL = 195, DB_KEY = "viajes_db";
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var LS = (function () { try { localStorage.setItem("_t", "1"); localStorage.removeItem("_t"); return localStorage; } catch (e) { var m = {}; return { getItem: function (k) { return m[k] || null; }, setItem: function (k, v) { m[k] = String(v); }, removeItem: function (k) { delete m[k]; } }; } })();
@@ -164,7 +164,7 @@
   function vistaMundo() {
     var st = stats(), C = 2 * Math.PI * 40, off = C * (1 - Math.min(1, st.pc / 100)), h = "";
     h += '<div class="asa"><i></i></div><div class="cuerpo" id="cuerpo">';
-    h += '<div class="stats"><div class="anillo"><svg width="92" height="92" viewBox="0 0 92 92"><circle cx="46" cy="46" r="40" fill="none" stroke="#E3EEEF" stroke-width="10"/><circle cx="46" cy="46" r="40" fill="none" stroke="#0E7C86" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '"/></svg><b>' + st.pcTxt + ' %</b></div>' +
+    h += '<div class="stats"><div class="anillo"><svg width="92" height="92" viewBox="0 0 92 92"><circle cx="46" cy="46" r="40" fill="none" style="stroke:var(--n4)" stroke-width="10"/><circle cx="46" cy="46" r="40" fill="none" style="stroke:var(--vis)" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '"/></svg><b>' + st.pcTxt + ' %</b></div>' +
       '<div class="kv"><div>Países<b>' + st.vis + '<span style="font-size:13px;color:var(--mut)"> / ' + TOTAL + '</span></b></div><div>Continentes<b>' + st.cont + ' / 6</b></div><div>Ciudades<b>' + st.ciu + '</b></div><div>Por visitar<b>' + st.des + "</b></div></div></div>";
     h += '<div class="buscar">' + ico("search") + '<input id="bq" placeholder="Buscar país o ciudad" value="' + esc(S.q) + '" autocomplete="off" autocapitalize="off"></div>';
     if (S.q.trim().length >= 2) h += resultados();
@@ -364,7 +364,7 @@
   }
   FergardAcceso.iniciar({
     app: "viajes", nombre: "Viajes", clientId: CFG.CLIENT_ID, onListo: boot,
-    tema: { bg: "#CFE8EC", fg: "#0C3640", mut: "#4A7380", acento: "#0A5F68", btnBg: "#0E7C86", btnFg: "#FFFFFF", font: "ui-rounded,'SF Pro Rounded',-apple-system,system-ui,sans-serif" },
-    marca: '<svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#0E7C86" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>'
+    tema: { bg: "#DDEBFB", fg: "#0F2A4A", mut: "#4F6C8F", acento: "#0E4585", btnBg: "#1560BD", btnFg: "#FFFFFF", font: "ui-rounded,'SF Pro Rounded',-apple-system,system-ui,sans-serif" },
+    marca: '<svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#1560BD" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>'
   });
 })();
