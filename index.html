@@ -21,14 +21,17 @@
   <div class="pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>Viajes <span id="nube" class="nube"></span></div>
   <div class="g">
     <button class="rb" id="bt-mundo" aria-label="Ver el mundo completo"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></button>
+    <button class="rb" id="bt-loc" aria-label="¿Dónde estoy? Registrar este lugar"><svg viewBox="0 0 24 24"><path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></button>
     <button class="rb" id="bt-aj" aria-label="Ajustes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
   </div>
 </div>
 <div id="hoja"></div>
 <div id="modal" class="modal" hidden></div>
+<div id="snack" hidden role="status"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="config.js"></script>
 <script src="acceso.js"></script>
+<script src="geo.js"></script>
 <script src="viajes.js"></script>
 </body>
 </html>

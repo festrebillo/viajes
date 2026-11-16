@@ -1,6 +1,6 @@
 /* Service worker de Viajes: guarda solo la cáscara y el mapa (≈1 MB) para abrir sin señal. No guarda fotos (no hay) ni datos. */
-const CACHE = "viajes-v0.1.0";
-const FILES = ["./", "index.html", "viajes.css", "viajes.js", "acceso.js", "config.js", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png", "data/paises.json"];
+const CACHE = "viajes-v0.2.0";
+const FILES = ["./", "index.html", "viajes.css", "viajes.js", "acceso.js", "geo.js", "config.js", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png", "data/paises.json"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", (e) => {

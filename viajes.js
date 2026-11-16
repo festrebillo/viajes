@@ -1,7 +1,7 @@
 /* Viajes · mapa del mundo, países visitados, ciudades y lista de deseos. Sin fotos. Los datos van a tu hoja «Fergard · Viajes». */
 (function () {
   "use strict";
-  var CFG = window.FG_CFG || {}, VERSION = "0.1.0", TOTAL = 195, DB_KEY = "viajes_db";
+  var CFG = window.FG_CFG || {}, VERSION = "0.2.0", TOTAL = 195, DB_KEY = "viajes_db";
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var LS = (function () { try { localStorage.setItem("_t", "1"); localStorage.removeItem("_t"); return localStorage; } catch (e) { var m = {}; return { getItem: function (k) { return m[k] || null; }, setItem: function (k, v) { m[k] = String(v); }, removeItem: function (k) { delete m[k]; } }; } })();
@@ -11,7 +11,7 @@
   /* ---------- datos locales y nube ---------- */
   function vacia() { return { v: 1, paises: {}, ciudades: {}, ajustes: {}, pend: {}, sync: { ult: 0 } }; }
   function cargar() { var d; try { d = JSON.parse(LS.getItem(DB_KEY)); } catch (e) { d = null; } if (!d || typeof d !== "object") d = vacia(); var b = vacia(); Object.keys(b).forEach(function (k) { if (d[k] === undefined) d[k] = b[k]; }); return d; }
-  var db = cargar(), P = [], PA = {}, CIU = null, CIU_P = null;
+  var db = cargar(), P = [], PA = {}, CIU = null, CIU_P = null, PROJ = null;
   var S = { modo: "mundo", pais: null, tab: "vis", q: "", qc: "", snap: "med", cargando: false, sync: "" };
   function save() { try { LS.setItem(DB_KEY, JSON.stringify(db)); } catch (e) {} }
   function touch(t, id, o) { if (o) o.upd = Date.now(); db.pend[t + ":" + id] = Date.now(); save(); schedSync(); }
@@ -70,7 +70,7 @@
   function dims() { var m = $("#mapa"); return { cw: m.clientWidth || 400, ch: m.clientHeight || 800 }; }
   function aplicarVB() {
     svgEl.setAttribute("viewBox", VB.x.toFixed(2) + " " + VB.y.toFixed(2) + " " + VB.w.toFixed(2) + " " + VB.h.toFixed(2));
-    var k0 = VB.w / dims().cw; svgEl.querySelectorAll("circle.m").forEach(function (c) { c.setAttribute("r", 3.2 * k0); }); svgEl.classList.toggle("zoom", VB.w < 260);
+    var k0 = VB.w / dims().cw; svgEl.querySelectorAll("circle.m").forEach(function (c) { c.setAttribute("r", 3.2 * k0); }); var yo = svgEl.querySelector("#yo"); if (yo) yo.setAttribute("r", 5 * k0); svgEl.classList.toggle("zoom", VB.w < 260);
     var g = $("#cs", svgEl); if (g) { var d = dims(), k = VB.w / d.cw; $$("circle", g).forEach(function (c) { c.setAttribute("r", (c.getAttribute("data-big") === "1" ? 7 : 5) * k); }); $$("text", g).forEach(function (t) { t.setAttribute("font-size", 11 * k); t.setAttribute("dy", -9 * k); t.setAttribute("stroke-width", 3.5 * k); }); }
   }
   function vbMundo() { var d = dims(), w = 1000, h = w * d.ch / d.cw; if (h < 520) { h = 520; w = h * d.cw / d.ch; } return { x: 500 - w / 2, y: 260 - (h > 520 ? .30 : .5) * h, w: w, h: h }; }
@@ -226,6 +226,51 @@
     e.className = "nube" + (n ? " p" : ""); e.textContent = n ? "⏳ " + n + " por subir" : db.sync.ok ? "☁ Al día" : "";
   }
 
+  /* ---------- ubicación: registrar lugares nuevos ---------- */
+  function pedirPos(fresca) { return new Promise(function (res, rej) { if (!navigator.geolocation) { rej({ code: 0 }); return; } navigator.geolocation.getCurrentPosition(function (p) { res(p.coords); }, function (e) { rej(e); }, { enableHighAccuracy: false, timeout: 15000, maximumAge: fresca ? 0 : 600000 }); }); }
+  function resolverLugar(lat, lon) {   // con los datos de la propia app: nada se envía a ningún servicio
+    return cargarCiudades().then(function () {
+      var near = VGeo.cercanas(lat, lon, CIU, 6), cands = [], pt = VGeo.proyectar(lat, lon, PROJ);
+      near.forEach(function (n) { if (cands.indexOf(n.c[1]) < 0 && n.d < 400) cands.push(n.c[1]); });
+      return Promise.all(cands.map(function (a) { return fetch("data/p/" + a + ".json").then(function (r) { return r.json(); }).then(function (d) { return { a: a, rings: VGeo.anillos(d.d) }; }).catch(function () { return null; }); })).then(function (list) {
+        var hit = list.filter(function (x) { return x && VGeo.dentro(pt[0], pt[1], x.rings); })[0], a = hit ? hit.a : (near[0] && near[0].d < 120 ? near[0].c[1] : null);
+        if (!a) return { a: null, pt: pt };
+        var ciu = VGeo.ciudadDe(near, a); return { a: a, ciudad: ciu ? ciu.c : null, pt: pt };
+      });
+    });
+  }
+  function copia(o) { return o ? JSON.parse(JSON.stringify(o)) : null; }
+  function registrarAqui(r) {
+    var year = new Date().getFullYear(), cambios = [], p = PA[r.a], dp = db.paises[r.a];
+    if (!dp || dp.e !== "visitado") { cambios.push({ t: "pais", id: r.a, antes: copia(dp) }); if (!dp) dp = db.paises[r.a] = { a: r.a, n: p.n, e: "visitado" }; dp.e = "visitado"; dp.n = p.n; if (!dp.y) dp.y = year; touch("pais", r.a, dp); }
+    if (r.ciudad) {
+      var id = r.a + "|" + r.ciudad[0], dc = db.ciudades[id];
+      if (!dc || dc.e !== "visitado") { cambios.push({ t: "ciudad", id: id, antes: copia(dc) }); if (!dc) dc = db.ciudades[id] = { id: id, c: r.a, pn: p.n, n: r.ciudad[0], e: "visitado", cx: r.ciudad[2], cy: r.ciudad[3] }; dc.e = "visitado"; if (!dc.y) dc.y = year; touch("ciudad", id, dc); }
+    }
+    pintarMapa(); render(true); return cambios;
+  }
+  function deshacer(cambios) {
+    cambios.slice().reverse().forEach(function (c) { var m = c.t === "pais" ? db.paises : db.ciudades; if (c.antes) { m[c.id] = c.antes; touch(c.t, c.id, c.antes); } else quitar(c.t, c.id); });
+    pintarMapa(); render(true); toast("Deshecho");
+  }
+  function marcarYo(pt) { if (!svgEl || !pt) return; var o = svgEl.querySelector("#yo"); if (o) o.remove(); svgEl.insertAdjacentHTML("beforeend", '<circle id="yo" class="yo" cx="' + pt[0].toFixed(1) + '" cy="' + pt[1].toFixed(1) + '" r="3"/>'); aplicarVB(); }
+  function snack(txt, accion) {
+    var e = $("#snack"); e.hidden = false; e.innerHTML = '<span>' + esc(txt) + '</span><button id="snk">Deshacer</button>'; clearTimeout(snack.t);
+    $("#snk").onclick = function () { e.hidden = true; accion(); }; snack.t = setTimeout(function () { e.hidden = true; }, 10000);
+  }
+  function ubicar(manual) {
+    if (!PROJ) return Promise.resolve();
+    return pedirPos(manual).then(function (c) { return resolverLugar(c.latitude, c.longitude); }).then(function (r) {
+      marcarYo(r.pt);
+      if (!r.a || !PA[r.a]) { if (manual) toast("No pude saber en qué país estás (¿en el mar?)"); return; }
+      var cambios = registrarAqui(r), nombre = (r.ciudad ? r.ciudad[0] + ", " : "") + PA[r.a].n;
+      LS.setItem("vj_ult", String(Date.now()));
+      if (cambios.length) snack("📍 Estás en " + nombre + ". Lo registré como visitado.", function () { deshacer(cambios); });
+      else if (manual) toast("📍 Estás en " + nombre + " (ya lo tenías)");
+      if (manual) abrirPais(r.a);
+    }).catch(function (e) { if (manual) toast(e && e.code === 1 ? "Permiso de ubicación denegado. Actívalo en Ajustes del iPhone → Privacidad → Localización." : !navigator.geolocation ? "Este dispositivo no permite ubicación" : "No pude obtener tu ubicación"); });
+  }
+
   /* ---------- acciones ---------- */
   function cargarCiudades() {
     if (CIU) return Promise.resolve();
@@ -265,7 +310,7 @@
   }
   function ajustes() {
     var m = $("#modal"); m.hidden = false; var url = db.sync.url;
-    m.innerHTML = '<div class="caja"><h3>Ajustes</h3><label class="lbl">Acceso</label><div id="acc"></div><label class="lbl">Sincronización</label><div style="font-size:14px;color:var(--mut);line-height:1.5">' + esc(!cfg().token ? "Sin vincular" : S.sync || (db.sync.ok ? "Al día" : "Lista para sincronizar")) + " · pendientes: " + Object.keys(db.pend).length + '</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sec" data-a="sync">Sincronizar</button>' + (url ? '<a class="btn sec" target="_blank" rel="noopener" href="' + esc(url) + '" style="text-decoration:none">Abrir mi hoja de Viajes</a>' : "") + '</div><label class="lbl">Espacio en este dispositivo</label><div style="font-size:14px;color:var(--mut);line-height:1.5">No se guardan fotos. Solo una copia pequeña de tus lugares y la cáscara de la app. <b id="uso">calculando…</b></div><button class="btn sec" data-a="liberar" style="margin-top:8px">Liberar espacio</button><div style="font-size:12.5px;color:var(--mut);margin-top:18px;text-align:center">Viajes v' + VERSION + " · mapa y ciudades de Natural Earth (dominio público)</div><button class=\"btn sec full\" data-a=\"mcerrar\">Cerrar</button></div>";
+    m.innerHTML = '<div class="caja"><h3>Ajustes</h3><label class="lbl">Acceso</label><div id="acc"></div><label class="lbl">Sincronización</label><div style="font-size:14px;color:var(--mut);line-height:1.5">' + esc(!cfg().token ? "Sin vincular" : S.sync || (db.sync.ok ? "Al día" : "Lista para sincronizar")) + " · pendientes: " + Object.keys(db.pend).length + '</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sec" data-a="sync">Sincronizar</button>' + (url ? '<a class="btn sec" target="_blank" rel="noopener" href="' + esc(url) + '" style="text-decoration:none">Abrir mi hoja de Viajes</a>' : "") + '</div><label class="lbl">Registro automático de lugares</label><div style="font-size:14px;color:var(--mut);line-height:1.5">Al abrir la app, si estás en un país o ciudad que no tenías, lo registra como visitado (con opción de deshacer). Usa tu ubicación solo en ese momento: <b>no se guarda ni se envía</b>, solo queda el país y la ciudad. Funciona con la app abierta; el iPhone no permite seguirte en segundo plano.</div><button class="btn sec" data-a="auto" style="margin-top:8px">' + (LS.getItem("vj_auto") === "1" ? "Activado · desactivar" : "Activar registro automático") + '</button><label class="lbl">Espacio en este dispositivo</label><div style="font-size:14px;color:var(--mut);line-height:1.5">No se guardan fotos. Solo una copia pequeña de tus lugares y la cáscara de la app. <b id="uso">calculando…</b></div><button class="btn sec" data-a="liberar" style="margin-top:8px">Liberar espacio</button><div style="font-size:12.5px;color:var(--mut);margin-top:18px;text-align:center">Viajes v' + VERSION + " · mapa y ciudades de Natural Earth (dominio público)</div><button class=\"btn sec full\" data-a=\"mcerrar\">Cerrar</button></div>";
     m.onclick = function (e) { if (e.target === m) m.hidden = true; }; if (window.FergardAcceso) FergardAcceso.panel($("#acc"));
     var f = function (b) { return b < 1048576 ? Math.max(1, Math.round(b / 1024)) + " KB" : (b / 1048576).toFixed(1) + " MB"; };
     if (navigator.storage && navigator.storage.estimate) navigator.storage.estimate().then(function (e) { var u = $("#uso"); if (u) u.textContent = "≈ " + f(e.usage || 0); });
@@ -273,6 +318,10 @@
   var A = {
     abrir: function (el) { abrirPais(el.dataset.id); },
     mundo: function () { volverMundo(); },
+    auto: function () {
+      if (LS.getItem("vj_auto") === "1") { LS.setItem("vj_auto", "0"); toast("Registro automático desactivado"); ajustes(); }
+      else { LS.setItem("vj_auto", "1"); $("#modal").hidden = true; toast("Activado: te pediré permiso de ubicación"); ubicar(true); }
+    },
     tab: function (el) { S.tab = el.dataset.v; render(true); },
     est: function (el) { setPais(S.pais, el.dataset.v); },
     ciudad: function (el) { var id = el.dataset.id, par = id.split("|"); if (S.modo !== "pais" || S.pais !== par[0]) { /* desde la búsqueda */ } tocarCiudad(id); },
@@ -299,16 +348,17 @@
     if (f === "anio") { var y = t.value.replace(/\D/g, "").slice(0, 4); d.y = y ? +y : ""; touch("pais", S.pais, d); render(true); } else if (f === "nota") { d.nota = t.value.trim(); touch("pais", S.pais, d); }
   });
   $("#bt-aj").onclick = function () { ajustes(); };
+  $("#bt-loc").onclick = function () { ubicar(true); };
   $("#bt-mundo").onclick = function () { if (S.modo === "pais") volverMundo(); else irA(vbMundo(), 500); };
 
   /* ---------- arranque ---------- */
   function boot() {
     fetch("data/paises.json").then(function (r) { return r.json(); }).then(function (d) {
-      P = d.paises; P.forEach(function (p) { PA[p.a] = p; });
+      P = d.paises; PROJ = d.proj; P.forEach(function (p) { PA[p.a] = p; });
       var vacio = !db.sync.ult && !Object.keys(db.paises).length && !Object.keys(db.ciudades).length; if (vacio && cfg().token) S.cargando = true;
       construirMapa(); asa(); render();
-      window.VJ_DEBUG = { db: function () { return db; }, P: P, S: S, VB: function () { return VB; }, abrirPais: abrirPais, stats: stats };
-      sync(false).then(function () { if (S.cargando) { S.cargando = false; pintarMapa(); render(); } });
+      window.VJ_DEBUG = { ubicar: ubicar, db: function () { return db; }, P: P, S: S, VB: function () { return VB; }, abrirPais: abrirPais, stats: stats };
+      sync(false).then(function () { if (S.cargando) { S.cargando = false; pintarMapa(); render(); } if (LS.getItem("vj_auto") === "1" && Date.now() - (+LS.getItem("vj_ult") || 0) > 30 * 60000) ubicar(false); });
       if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () {});
     }).catch(function () { $("#hoja").innerHTML = '<div class="cuerpo"><div class="vacio"><b>No se pudo cargar el mapa</b>Abre la app con internet una vez.</div></div>'; });
   }
