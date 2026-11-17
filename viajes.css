@@ -31,7 +31,7 @@ input:focus,textarea:focus{outline:0;border-color:var(--vis)}
 .top .g{display:flex;gap:10px}
 
 /* hoja deslizable */
-#hoja{position:fixed;left:0;right:0;bottom:0;height:86vh;z-index:10;background:var(--hoja);border-radius:28px 28px 0 0;box-shadow:0 -10px 40px rgba(var(--sombra),.18);display:flex;flex-direction:column;transition:transform .32s cubic-bezier(.2,.8,.2,1);max-width:640px;margin:0 auto;will-change:transform}
+#hoja{position:fixed;left:0;right:0;bottom:0;height:52vh;z-index:10;background:var(--hoja);border-radius:28px 28px 0 0;box-shadow:0 -10px 40px rgba(var(--sombra),.18);display:flex;flex-direction:column;transition:height .32s cubic-bezier(.2,.8,.2,1);max-width:640px;margin:0 auto}
 #hoja.drag{transition:none}
 .asa{padding:10px 0 4px;touch-action:none;cursor:grab;flex:none}
 .asa i{display:block;width:42px;height:5px;border-radius:3px;background:var(--asa);margin:0 auto}

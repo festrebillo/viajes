@@ -1,7 +1,7 @@
 /* Viajes · mapa del mundo, países visitados, ciudades y lista de deseos. Sin fotos. Los datos van a tu hoja «Fergard · Viajes». */
 (function () {
   "use strict";
-  var CFG = window.FG_CFG || {}, VERSION = "0.3.0", TOTAL = 195, DB_KEY = "viajes_db";
+  var CFG = window.FG_CFG || {}, VERSION = "0.3.1", TOTAL = 195, DB_KEY = "viajes_db";
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var LS = (function () { try { localStorage.setItem("_t", "1"); localStorage.removeItem("_t"); return localStorage; } catch (e) { var m = {}; return { getItem: function (k) { return m[k] || null; }, setItem: function (k, v) { m[k] = String(v); }, removeItem: function (k) { delete m[k]; } }; } })();
@@ -134,14 +134,15 @@
   }
 
   /* ---------- hoja deslizable ---------- */
-  function alturas() { var H = $("#hoja").offsetHeight; return { max: 0, med: H - Math.round(innerHeight * .52), peek: H - 168 }; }
-  function posHoja(inmediato) { var h = $("#hoja"), a = alturas(); if (inmediato) h.classList.add("drag"); h.style.transform = "translateY(" + a[S.snap] + "px)"; if (inmediato) requestAnimationFrame(function () { h.classList.remove("drag"); }); }
+  /* la hoja cambia de ALTURA (no se desliza hacia abajo): así su contenido siempre termina dentro de la pantalla y se puede llegar al final */
+  function alturas() { return { peek: 168, med: Math.round(innerHeight * .52), max: Math.round(innerHeight * .86) }; }
+  function posHoja(inmediato) { var h = $("#hoja"), a = alturas(); if (inmediato) h.classList.add("drag"); h.style.height = a[S.snap] + "px"; if (inmediato) requestAnimationFrame(function () { h.classList.remove("drag"); }); }
   function asa() {
     var h = $("#hoja"), a = null, y0 = 0, t0 = 0, mov = 0, base = 0;
     h.addEventListener("pointerdown", function (e) { if (!e.target.closest(".asa, .stats, .cab") || e.target.closest("button,input,textarea")) return; a = alturas(); base = a[S.snap]; y0 = e.clientY; t0 = Date.now(); mov = 0; h.classList.add("drag"); try { h.setPointerCapture(e.pointerId); } catch (x) {} });
-    h.addEventListener("pointermove", function (e) { if (a === null) return; mov = e.clientY - y0; h.style.transform = "translateY(" + Math.max(0, Math.min(a.peek, base + mov)) + "px)"; });
-    function soltar(e) {
-      if (a === null) return; h.classList.remove("drag"); var cur = Math.max(0, Math.min(a.peek, base + mov)), v = mov / Math.max(1, Date.now() - t0);
+    h.addEventListener("pointermove", function (e) { if (a === null) return; mov = e.clientY - y0; h.style.height = Math.max(a.peek, Math.min(a.max, base - mov)) + "px"; });
+    function soltar() {
+      if (a === null) return; h.classList.remove("drag"); var cur = Math.max(a.peek, Math.min(a.max, base - mov)), v = -mov / Math.max(1, Date.now() - t0);
       if (Math.abs(mov) < 6) S.snap = S.snap === "peek" ? "med" : S.snap === "med" ? "max" : "med";
       else { var tgt = cur + v * 120, best = "med", d = 1e9; ["max", "med", "peek"].forEach(function (k) { if (Math.abs(a[k] - tgt) < d) { d = Math.abs(a[k] - tgt); best = k; } }); S.snap = best; }
       a = null; posHoja();
